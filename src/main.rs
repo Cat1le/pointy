@@ -31,6 +31,7 @@ struct Config {
 struct Task {
     title: String,
     reward: usize,
+    persist: bool,
 }
 
 impl PartialOrd for Task {
@@ -43,6 +44,7 @@ impl PartialOrd for Task {
 struct Reward {
     title: String,
     price: usize,
+    persist: bool,
 }
 
 impl PartialOrd for Reward {
@@ -60,11 +62,13 @@ enum State {
         op: usize,
         title: String,
         reward: String,
+        persist: bool,
     },
     NewReward {
         op: usize,
         title: String,
         price: String,
+        persist: bool,
     },
     SolveTask {
         index: usize,
@@ -111,11 +115,13 @@ fn main() -> anyhow::Result<()> {
                                     op: 0,
                                     title: String::new(),
                                     reward: String::new(),
+                                    persist: false,
                                 },
                                 1 => State::NewReward {
                                     op: 0,
                                     title: String::new(),
                                     price: String::new(),
+                                    persist: false,
                                 },
                                 2 => State::SolveTask { index: 0 },
                                 3 => State::TakeReward { index: 0 },
@@ -142,6 +148,7 @@ fn main() -> anyhow::Result<()> {
                 ref mut op,
                 ref mut title,
                 ref mut reward,
+                ref mut persist,
             } => match op {
                 0 => match e {
                     Event::Key(key) => match key.code {
@@ -187,9 +194,28 @@ fn main() -> anyhow::Result<()> {
                     if let Event::Key(key) = e {
                         match key.code {
                             KeyCode::Enter => {
+                                *persist = false;
+                            }
+                            KeyCode::Char(c) => match c.to_ascii_lowercase() {
+                                'y' | 'д' => {
+                                    *persist = true;
+                                }
+                                'n' | 'н' => *persist = false,
+                                _ => {}
+                            },
+                            KeyCode::Esc => state = State::Main { index: 0 },
+                            _ => {}
+                        }
+                    }
+                }
+                3 => {
+                    if let Event::Key(key) = e {
+                        match key.code {
+                            KeyCode::Enter => {
                                 conf.tasks.push(Task {
                                     title: title.clone(),
                                     reward: reward.parse().unwrap(),
+                                    persist: *persist,
                                 });
                                 update_config(&conf).unwrap();
                                 state = State::Main { index: 0 }
@@ -199,6 +225,7 @@ fn main() -> anyhow::Result<()> {
                                     conf.tasks.push(Task {
                                         title: title.clone(),
                                         reward: reward.parse().unwrap(),
+                                        persist: *persist,
                                     });
                                     update_config(&conf).unwrap();
                                     state = State::Main { index: 0 }
@@ -217,6 +244,7 @@ fn main() -> anyhow::Result<()> {
                 ref mut op,
                 ref mut title,
                 ref mut price,
+                ref mut persist,
             } => match op {
                 0 => match e {
                     Event::Key(key) => match key.code {
@@ -262,9 +290,28 @@ fn main() -> anyhow::Result<()> {
                     if let Event::Key(key) = e {
                         match key.code {
                             KeyCode::Enter => {
+                                *persist = false;
+                            }
+                            KeyCode::Char(c) => match c.to_ascii_lowercase() {
+                                'y' | 'д' => {
+                                    *persist = true;
+                                }
+                                'n' | 'н' => *persist = false,
+                                _ => {}
+                            },
+                            KeyCode::Esc => state = State::Main { index: 0 },
+                            _ => {}
+                        }
+                    }
+                }
+                3 => {
+                    if let Event::Key(key) = e {
+                        match key.code {
+                            KeyCode::Enter => {
                                 conf.rewards.push(Reward {
                                     title: title.clone(),
                                     price: price.parse().unwrap(),
+                                    persist: *persist,
                                 });
                                 update_config(&conf).unwrap();
                                 state = State::Main { index: 0 }
@@ -274,6 +321,7 @@ fn main() -> anyhow::Result<()> {
                                     conf.rewards.push(Reward {
                                         title: title.clone(),
                                         price: price.parse().unwrap(),
+                                        persist: *persist,
                                     });
                                     update_config(&conf).unwrap();
                                     state = State::Main { index: 0 }
@@ -293,8 +341,10 @@ fn main() -> anyhow::Result<()> {
                     match key.code {
                         KeyCode::Enter => {
                             if !conf.tasks.is_empty() {
-                                let task = conf.tasks.remove(*index);
-                                conf.points += task.reward;
+                                conf.points += conf.tasks[*index].reward;
+                                if !conf.tasks[*index].persist {
+                                    conf.tasks.remove(*index);
+                                }
                                 update_config(&conf).unwrap();
                             }
                             state = State::Main { index: 0 }
@@ -318,7 +368,7 @@ fn main() -> anyhow::Result<()> {
                             }
                         }
                         KeyCode::Delete => {
-                            if !conf.tasks.is_empty() {
+                            if !conf.tasks.is_empty() && !conf.tasks[*index].persist {
                                 conf.tasks.remove(*index);
                                 update_config(&conf).unwrap();
                             }
@@ -339,8 +389,10 @@ fn main() -> anyhow::Result<()> {
                     match key.code {
                         KeyCode::Enter => {
                             if size > 0 {
-                                let reward = conf.rewards.remove(*index);
-                                conf.points -= reward.price;
+                                conf.points -= conf.rewards[*index].price;
+                                if !conf.rewards[*index].persist {
+                                    conf.rewards.remove(*index);
+                                }
                                 update_config(&conf).unwrap();
                             }
                             state = State::Main { index: 0 }
@@ -356,7 +408,7 @@ fn main() -> anyhow::Result<()> {
                             }
                         }
                         KeyCode::Delete => {
-                            if size > 0 {
+                            if size > 0 && !conf.rewards[*index].persist {
                                 conf.rewards.remove(*index);
                                 update_config(&conf).unwrap();
                             }
@@ -419,7 +471,12 @@ fn render(conf: &Config, state: &State) {
                 .unwrap();
             });
         }
-        State::NewTask { op, title, reward } => match *op {
+        State::NewTask {
+            op,
+            title,
+            reward,
+            persist,
+        } => match *op {
             0 => {
                 execute!(
                     stdout(),
@@ -434,7 +491,7 @@ fn render(conf: &Config, state: &State) {
                 execute!(
                     stdout(),
                     Show,
-                    Print(format!("Task {title}\r\n\r\n")),
+                    Print(format!("Task '{title}'\r\n\r\n")),
                     Print("Reward: ".blue()),
                     Print(reward.to_string())
                 )
@@ -444,17 +501,34 @@ fn render(conf: &Config, state: &State) {
                 execute!(
                     stdout(),
                     Show,
+                    Print(format!("Task '{title}'\r\n\r\n")),
+                    Print("Persist? [y/N]: ".blue()),
+                )
+                .unwrap();
+            }
+            3 => {
+                execute!(
+                    stdout(),
+                    Show,
                     Print("Almost done\r\n\r\n"),
                     Print("Title: ".blue()),
                     Print(title),
                     Print("\r\nReward: ".blue()),
-                    Print(format!("{reward}\r\nCreate? [y/n] "))
+                    Print(reward.to_string()),
+                    Print("\r\nPersist: ".blue()),
+                    Print(persist.to_string()),
+                    Print("\r\n\r\nIs it ok? [Y/n]: ")
                 )
                 .unwrap();
             }
             _ => unreachable!(),
         },
-        State::NewReward { op, title, price } => match *op {
+        State::NewReward {
+            op,
+            title,
+            price,
+            persist,
+        } => match *op {
             0 => {
                 execute!(
                     stdout(),
@@ -469,7 +543,7 @@ fn render(conf: &Config, state: &State) {
                 execute!(
                     stdout(),
                     Show,
-                    Print(format!("Reward {title}\r\n\r\n")),
+                    Print(format!("Reward '{title}'\r\n\r\n")),
                     Print("Price: ".blue()),
                     Print(price.to_string())
                 )
@@ -479,11 +553,23 @@ fn render(conf: &Config, state: &State) {
                 execute!(
                     stdout(),
                     Show,
+                    Print(format!("Reward '{title}'\r\n\r\n")),
+                    Print("Persist? [y/N]: ".blue()),
+                )
+                .unwrap();
+            }
+            3 => {
+                execute!(
+                    stdout(),
+                    Show,
                     Print("Almost done\r\n\r\n"),
                     Print("Title: ".blue()),
                     Print(title),
                     Print("\r\nPrice: ".blue()),
-                    Print(format!("{price}\r\nCreate? [y/n] "))
+                    Print(price.to_string()),
+                    Print("\r\nPersist: ".blue()),
+                    Print(persist.to_string()),
+                    Print("\r\n\r\nIs it ok? [Y/n]: ")
                 )
                 .unwrap();
             }
