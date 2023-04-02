@@ -195,12 +195,17 @@ fn main() -> anyhow::Result<()> {
                         match key.code {
                             KeyCode::Enter => {
                                 *persist = false;
+                                *op += 1;
                             }
                             KeyCode::Char(c) => match c.to_ascii_lowercase() {
                                 'y' | 'д' => {
                                     *persist = true;
+                                    *op += 1;
                                 }
-                                'n' | 'н' => *persist = false,
+                                'n' | 'н' => {
+                                    *persist = false;
+                                    *op += 1;
+                                }
                                 _ => {}
                             },
                             KeyCode::Esc => state = State::Main { index: 0 },
@@ -291,12 +296,17 @@ fn main() -> anyhow::Result<()> {
                         match key.code {
                             KeyCode::Enter => {
                                 *persist = false;
+                                *op += 1;
                             }
                             KeyCode::Char(c) => match c.to_ascii_lowercase() {
                                 'y' | 'д' => {
                                     *persist = true;
+                                    *op += 1;
                                 }
-                                'n' | 'н' => *persist = false,
+                                'n' | 'н' => {
+                                    *persist = false;
+                                    *op += 1;
+                                }
                                 _ => {}
                             },
                             KeyCode::Esc => state = State::Main { index: 0 },
