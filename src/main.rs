@@ -588,7 +588,7 @@ fn render(conf: &Config, state: &State) {
             )
             .unwrap();
             conf.tasks.iter().enumerate().for_each(|(index, row)| {
-                let string = format!("[{}] {}\r\n", row.reward, row.title);
+                let string = format!("[{}:{}] {}\r\n", row.reward, row.persist as u8, row.title);
                 execute!(
                     stdout(),
                     Print(if index == *current_index {
@@ -613,7 +613,7 @@ fn render(conf: &Config, state: &State) {
             )
             .unwrap();
             conf.rewards.iter().enumerate().for_each(|(index, row)| {
-                let string = format!("[{}] {}\r\n", row.price, row.title);
+                let string = format!("[{}:{}] {}\r\n", row.price, row.persist as u8, row.title);
                 execute!(
                     stdout(),
                     Print(if row.price > conf.points {
